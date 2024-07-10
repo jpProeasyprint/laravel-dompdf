@@ -4,6 +4,8 @@ namespace Barryvdh\DomPDF;
 
 use Dompdf\Adapter\CPDF;
 use Dompdf\Dompdf;
+use Dompdf\Canvas;
+use Dompdf\FontMetrics;
 use Dompdf\Options;
 use Exception;
 use Illuminate\Filesystem\Filesystem;
@@ -68,6 +70,9 @@ class PDF
 
     /** @var string */
     protected $public_path;
+
+    /** @var callable(int $pageNumber, int $pageCount, Canvas $canvas, FontMetrics $fontMetrics):void | null | null */
+    protected $pageScriptCallback = null;
 
     public function __construct(Dompdf $dompdf, ConfigRepository $config, Filesystem $files, ViewFactory $view)
     {
@@ -236,12 +241,24 @@ class PDF
         ]);
     }
 
+    /** @param callable(int $pageNumber, int $pageCount, Canvas $canvas, FontMetrics $fontMetrics):void | null  $pageScriptCallback */
+    public function setPageScriptCallback($pageScriptCallback): self
+    {
+        $this->pageScriptCallback = $pageScriptCallback;
+
+        return $this;
+    }
+
     /**
      * Render the PDF
      */
     public function render(): void
     {
         $this->dompdf->render();
+
+        if ($this->pageScriptCallback !== null) {
+            $this->dompdf->getCanvas()->page_script($this->pageScriptCallback);
+        }
 
         if ($this->showWarnings) {
             global $_dompdf_warnings;
