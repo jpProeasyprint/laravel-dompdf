@@ -2,6 +2,7 @@
 
 namespace Barryvdh\DomPDF\Tests;
 
+use Str;
 use Barryvdh\DomPDF\Facade;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -141,7 +142,7 @@ class PdfTest extends TestCase
 
     public function testSave(): void
     {
-        $filename = public_path().'/my_stored_file.pdf';
+        $filename = public_path() . '/my_stored_file.pdf';
 
         $pdf = Facade\Pdf::loadView('test');
         $pdf->save($filename);
@@ -162,5 +163,28 @@ class PdfTest extends TestCase
 
         $this->assertEquals('host1', $pdf1->getDomPDF()->getBaseHost());
         $this->assertEquals('host2', $pdf2->getDomPDF()->getBaseHost());
+    }
+
+    public function testPageScriptCallbackMultiplePages(): void
+    {
+        $called = 0;
+        $pdf = Facade\Pdf::loadHTML(Str::repeat('<h1>Test</h1>', 20))
+            ->setPaper('A4')
+            ->setPageScriptCallback(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use (&$called) {
+
+                /** @var \Dompdf\FontMetrics $fontMetrics */
+                /** @var string $font */
+
+                $font = $fontMetrics->getFont($fontMetrics->getOptions()->getDefaultFont());
+
+                $canvas->text(510, 820, "Page $pageNumber of $pageCount", $font, 9, [0, 0, 0]);
+
+                $called++;
+            });
+
+        $pdf->output();
+
+        $this->assertEquals(2, $called);
+        $this->assertNotEmpty($pdf->output());
     }
 }
